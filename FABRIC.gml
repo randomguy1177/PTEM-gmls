@@ -40,7 +40,6 @@ with (instance_create(0, 0, obj_custom_object))
 	
 	selected = 0;
 	scrolling = 0;
-	quote = "\"";
 	
 	scr_load_file = function(filename)
 	{
@@ -61,7 +60,16 @@ with (instance_create(0, 0, obj_custom_object))
 		events = {};
 	}
 	
-	Mod = function(_file_path, _name, _desc, _enabled, _icon) constructor // constructors my beloved
+	init_function = function()
+	{
+		var m = self;
+		var api = "globalvar MOD_PATH = \"" + m.file_path + "\";#globalvar MOD_GLOBAL = {};#";
+		
+		var snippet = live_snippet_create(string_hash_to_newline(api + "#") + scr_load_file(m.file_path + "/init.gml"));
+		if live_snippet_call(snippet){} else get_string_async("Your mod fucked up!", "Runtime error for mod \"" + m.name + "\" init.gml :\n" + global.live_result);
+	}
+	
+	Mod = function(_file_path, _name, _desc, _enabled, _icon, _init = init_function) constructor // constructors my beloved
 	{
 		file_path = _file_path;
 		name = _name;
@@ -71,6 +79,8 @@ with (instance_create(0, 0, obj_custom_object))
 		icon = _icon;
 		
 		objects = {};
+		
+		init = method(self, _init);
 	}
 	
 	scr_mod_process_objects = function(struct)
@@ -99,6 +109,7 @@ with (instance_create(0, 0, obj_custom_object))
 				trace("Setting ", names[j], " to ", global.customObjects[$ names[j]]);
 				
 				var obj = global.customObjects[$ names[j]];
+				
 				live_variable_add(names[j], method(obj, function()
 				{
 					return self;
@@ -110,14 +121,22 @@ with (instance_create(0, 0, obj_custom_object))
 	for (var mods_name = file_find_first(path + "*", fa_directory); mods_name != ""; mods_name = file_find_next())
 	{
 		var _path = path + mods_name;
+		
+		var icon = spr_null;
+		var jsonstruct =
+		{
+			name : mods_name,
+			desc : "Description is missing."
+		};
+		
 		if file_exists(_path + "/mod.json")
-			var jsonstruct = json_parse(scr_load_file(_path + "/mod.json"));
+			jsonstruct = json_parse(scr_load_file(_path + "/mod.json"));
+		
 		if file_exists(_path + "/icon.png")
 			icon = sprite_add(_path + "/icon.png", 0, 0, 0, 0, 0);
-		else
-			icon = spr_null;
+		
 		ini_open(_path + "/mod.ini");
-		array_push(mods, new Mod(_path, file_exists(_path + "/mod.json") ? jsonstruct.name : mods_name, file_exists(_path + "/mod.json") ? jsonstruct.desc : "Description is missing.", ini_read_real("Mod", "enabled", 0), icon));
+		array_push(mods, new Mod(_path, jsonstruct.name, jsonstruct.desc, ini_read_real("Mod", "enabled", 0), icon));
 		ini_close();
 	}
 	
@@ -186,7 +205,7 @@ with (instance_create(0, 0, obj_custom_object))
 			{
 				instance_destroy();
 				scr_soundeffect(sfx_enemyprojectile); 
-			} 
+			}
 			exit;
 		}
 		
@@ -216,20 +235,61 @@ with (instance_create(0, 0, obj_custom_object))
 				{
 					scr_mod_process_objects(m);
 					
-					if file_exists(m.file_path + "/init.gml")
+					live_function_add("instance_create(arg0, arg1, arg2)", function(arg0, arg1, arg2)
 					{
-						var api = "";
-						api += string("globalvar MOD_PATH = \"" + m.file_path + "\";#globalvar MOD_GLOBAL = {};#");
-						var snippet = live_snippet_create(string_hash_to_newline(api + "#") + scr_load_file(m.file_path + "/init.gml"));
-						if live_snippet_call(snippet){} else get_string_async("Your mod fucked up!", "Runtime error for mod : " + quote + m.name + quote  + " in init.gml\n" + global.live_result);
-					}
+						if is_struct(arg2)
+						{
+							var inst = instance_create_depth(arg0, arg1, object_get_depth(obj_custom_object), obj_custom_object, arg2.events);
+							
+							with inst
+							{
+								if step_event != ""
+									step_event_saved = live_snippet_create(step_event);
+								if draw_event != ""
+									draw_event_saved = live_snippet_create(draw_event);
+								if drawgui_event != ""
+									drawgui_event_saved = live_snippet_create(drawgui_event);
+								if roomstart_event != ""
+									roomstart_event_saved = live_snippet_create(roomstart_event);
+								
+								if create_event != undefined && create_event != ""
+								{
+									snippet = live_snippet_create(create_event);
+									_func = asset_get_index(script_get_name(method(self, live_snippet_call))); // prevent game from going bat shit insane
+									_func(snippet);
+								}
+							}
+						}
+						else
+						{
+							var myDepth = object_get_depth(arg2);
+							var inst = instance_create_depth(arg0, arg1, myDepth, arg2);
+						}
+						
+						if (instance_exists(obj_fakeeditor))
+						{
+							with(obj_fakeeditor)
+							{
+								if(in_play_mode)
+								{
+									instances[instances_len] = inst
+									instances_len++
+								}
+							}
+						}
+						
+						return inst;
+					});
+					
+					if file_exists(m.file_path + "/init.gml")
+						m.init();
 				}
 				else if m.was_enabled != m.enabled && !m.enabled && file_exists(m.file_path + "/cleanup.gml")
 				{
 					var api = "";
 					api += string("globalvar MOD_PATH = \"" + m.file_path + "\";#globalvar MOD_GLOBAL = {};#");
 					var snippet = live_snippet_create(string_hash_to_newline(api + "#") + scr_load_file(m.file_path + "/cleanup.gml"))
-					if live_snippet_call(snippet){} else get_string_async("Your mod fucked up!", "Runtime error for mod : " + quote + m.name + quote  + " in cleanup.gml\n" + global.live_result);
+					if live_snippet_call(snippet){} else get_string_async("Your mod fucked up!", "Runtime error for mod \"" + m.name + "\" in cleanup.gml :\n" + global.live_result);
 				}
 			}
 			instance_destroy();
