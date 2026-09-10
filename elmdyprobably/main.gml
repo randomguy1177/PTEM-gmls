@@ -24,7 +24,7 @@ global.lap4times =
     entrance_1: 5,
     entrance_lap: 1,
     entrance_treasure: 3,
-
+	
     medieval_10: 3,
     medieval_9b: 5,
     medieval_9: 5,
@@ -319,6 +319,12 @@ global.checkpoints =
 
 global.visitedrooms = {};
 
+with obj_player1
+{
+	prev_faketv = faketv;
+	prev_isgustavo = true;
+}
+
 instance_destroy(obj_custom_object_ext);
 with (instance_create(0, 0, obj_custom_object_ext))
 {
@@ -386,7 +392,10 @@ with (instance_create(0, 0, obj_custom_object_ext))
 	
 	downloadFile("https://raw.githubusercontent.com/randomguy1177/PTEM-gmls/refs/heads/main/elmdyprobably/spr_lap4timer.png", "spr_lap4timer.png", 1, 0, 200);
 	downloadFile("https://raw.githubusercontent.com/randomguy1177/PTEM-gmls/refs/heads/main/elmdyprobably/spr_mrskelly_idle.png", "spr_mrskelly_idle.png", 3, 0, 200);
-	downloadFile("https://raw.githubusercontent.com/randomguy1177/PTEM-gmls/refs/heads/main/elmdyprobably/spr_mrskelly_timelow.png", "spr_mrskelly_timelow.png", 6, 0, 200);
+	downloadFile("https://raw.githubusercontent.com/randomguy1177/PTEM-gmls/refs/heads/main/elmdyprobably/spr_mrskelly_timelow.png", "spr_mrskelly_timelow.png", 5, 0, 200);
+	
+	/* downloadFile("https://raw.githubusercontent.com/randomguy1177/PTEM-gmls/refs/heads/main/elmdyprobably/spr_mrskelly_timelowtransstart.png", "spr_mrskelly_timelowtransstart.png", 2, 0, 200);
+	downloadFile("https://raw.githubusercontent.com/randomguy1177/PTEM-gmls/refs/heads/main/elmdyprobably/spr_mrskelly_timelowtrans.png", "spr_mrskelly_timelowtrans.png", 4, 0, 200); */
 	
 	downloadFile("https://raw.githubusercontent.com/randomguy1177/PTEM-gmls/refs/heads/main/elmdyprobably/spr_lap3warning.png", "spr_lap3warning.png", 1, 50, 50);
 	downloadFile("https://raw.githubusercontent.com/randomguy1177/PTEM-gmls/refs/heads/main/elmdyprobably/spr_lap3.png", "spr_lap3.png", 1, 123);
@@ -407,6 +416,7 @@ with (instance_create(0, 0, obj_custom_object_ext))
 	
 	downloadFile("https://raw.githubusercontent.com/randomguy1177/PTEM-gmls/refs/heads/main/elmdyprobably/spr_tv_peplap3.png", "spr_tv_peplap3.png", 19, 139, 134); // 19 frame, xoraneg : 139, yoran ge : 134
 	downloadFile("https://raw.githubusercontent.com/randomguy1177/PTEM-gmls/refs/heads/main/elmdyprobably/spr_tv_pepworried.png", "spr_tv_pepworried.png", 19, 139, 134);
+	downloadFile("https://raw.githubusercontent.com/randomguy1177/PTEM-gmls/refs/heads/main/elmdyprobably/spr_tv_lap3gustavo.png", "spr_tv_lap3gustavo.png", 18, 139, 134);
 	
 	downloadFile("https://raw.githubusercontent.com/randomguy1177/PTEM-gmls/refs/heads/main/elmdyprobably/spr_rankLAP3P.png", "spr_rankLAP3P.png", 49, 480, 270);
 	downloadFile("https://raw.githubusercontent.com/randomguy1177/PTEM-gmls/refs/heads/main/elmdyprobably/spr_rankLAP4P.png", "spr_rankLAP4P.png", 45, 480, 270);
@@ -466,7 +476,8 @@ with (instance_create(0, 0, obj_custom_object_ext))
 		image_speed : 0.35,
 		image_number : 0,
 		fakedead : false,
-		ded : false
+		ded : false,
+		effect : 0
 	};
 	
 	candie = false;
@@ -575,6 +586,17 @@ with (instance_create(0, 0, obj_custom_object_ext))
 		obj_tv.prompt = noone;
 		ds_list_clear(obj_tv.tvprompts_list);
 		
+		if !obj_player1.isgustavo
+		{
+			if obj_player1.prev_isgustavo
+				obj_player1.faketv = obj_player1.prev_faketv;
+			obj_player1.prev_faketv = obj_player1.faketv;
+		}
+		else
+			obj_player1.faketv = true;
+		
+		obj_player1.prev_isgustavo = obj_player1.isgustavo;
+		
 		if global.laps >= 2
 		{
 			with obj_lap2visual
@@ -583,8 +605,8 @@ with (instance_create(0, 0, obj_custom_object_ext))
 			if obj_tv.state == 0 || obj_tv.state == 251
 			{
 				if obj_player1.state != 121 && obj_player1.sprite_index != obj_player1.spr_mach3boost && !obj_player1.mach4mode
-					tv_do_expression(sr(global.laps >= 3 ? "spr_tv_pepworried" : "spr_tv_peplap3"));
-				else if obj_tv.sprite_index == sr("spr_tv_peplap3") || obj_tv.sprite_index == sr("spr_tv_pepworried")
+					tv_do_expression(sr(obj_player1.isgustavo ? "spr_tv_lap3gustavo" : (global.laps >= 3 ? "spr_tv_pepworried" : "spr_tv_peplap3")));
+				else if obj_tv.sprite_index == sr("spr_tv_peplap3") || obj_tv.sprite_index == sr("spr_tv_pepworried") || obj_tv.sprite_index == sr("spr_tv_lap3gustavo")
 				{
 					obj_tv.state = 250;
 					obj_tv.expressionsprite = obj_player1.mach4mode ? obj_player1._spr_tv_exprmach4 : obj_player1._spr_tv_exprmach3;
@@ -601,6 +623,7 @@ with (instance_create(0, 0, obj_custom_object_ext))
 					case spr_priest_pray:
 						sprite_index = other.sr("spr_cheesepriest_pray");
 					break;
+					
 					case spr_priest_idle:
 						sprite_index = other.sr("spr_cheesepriest");
 					break;
@@ -616,6 +639,7 @@ with (instance_create(0, 0, obj_custom_object_ext))
 					case spr_grabbiehand_catch:
 						sprite_index = other.sr("spr_cheesehand_grab");
 					break;
+					
 					case spr_grabbiehand_idle:
 						sprite_index = other.sr("spr_cheesehand");
 					break;
@@ -792,6 +816,13 @@ with (instance_create(0, 0, obj_custom_object_ext))
 				if floor(image_index) == (image_number - 1) && sprite_index == other.sr("spr_snick_exe_lungeend")
 					sprite_index = spr_snick_exe;
 			}
+			
+			if effect-- <= 0
+			{
+				create_custom_afterimage(x, y, sprite_index, image_index - 1, image_xscale, make_color_rgb(223, 47, 0), 0.8);
+				effect = 10;
+			}
+			
 			var bbox_left = x + (sprite_get_bbox_left(sprite_index) - sprite_get_xoffset(sprite_index)) * image_xscale;
 			var bbox_top = y + (sprite_get_bbox_top(sprite_index) - sprite_get_yoffset(sprite_index)) * image_yscale;
 			var bbox_right = x + (sprite_get_bbox_right(sprite_index) - sprite_get_xoffset(sprite_index)) * image_xscale;
