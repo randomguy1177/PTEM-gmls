@@ -1502,7 +1502,7 @@ with instance_create(0, 0, obj_custom_object_ext)
 							xstart = x;
 							ystart = y;
 							sprite_index = (other.sprite_index == spr_null ? object_get_sprite(obj_startgate) : other.sprite_index);
-							targetRoom = global.main;
+							targetRoom = global.rooms[$ "main"];
 							levelName = other.levelName;
 						} 
 						instance_destroy();
@@ -1520,10 +1520,11 @@ with instance_create(0, 0, obj_custom_object_ext)
 					if variable_struct_exists(j.variables, "targetRoom")
 					{
 						var targetname = variable_struct_get(j.variables, "targetRoom");
+						
 						if other.fixedrooms
-							variable_instance_set(id, "targetRoom", variable_global_get(targetname + (variable_global_exists(targetname + "_wfixed") ? "_wfixed" : "")));
+							variable_instance_set(id, "targetRoom", global.rooms[$ (targetname + (global.rooms[$ targetname + "_wfixed"] != undefined ? "_wfixed" : ""))]);
 						else
-							variable_instance_set(id, "targetRoom", variable_global_get(targetname));
+							variable_instance_set(id, "targetRoom", global.rooms[$ targetname]);
 					} 
 				} 
 			} 
@@ -1614,8 +1615,6 @@ with instance_create(0, 0, obj_custom_object_ext)
 					
 				    global.levelmemory[i].room_index = rm;
 				    global.rooms[$ room_name] = rm;
-					
-				    variable_global_set(room_name, rm);
 				} 
 				exit;
 			}
@@ -1676,11 +1675,15 @@ with instance_create(0, 0, obj_custom_object_ext)
 					
 					ini_close();
 				}
+				
 				file_find_close();
 				other.add_afom_rooms();
-				var my_target = variable_struct_exists(global.rooms, "main_wfixed") ? global.main_wfixed : global.main;
+				
+				var my_target = variable_struct_exists(global.rooms, "main_wfixed") ? global.rooms[$ "main_wfixed"] : global.rooms[$ "main"];
+				
 				with startgateid
 					targetRoom = my_target;
+				
 				global.leveltorestart = my_target; 
 			} 
 		} 
@@ -1735,6 +1738,7 @@ with instance_create(0, 0, obj_custom_object_ext)
 				ini_open(path + levels[selected].name + "/" + my_ini);
 				global.levelname = ini_read_string("properties", "mainlevel", "Ass");
 				ini_close();
+				
 				for (var audios = file_find_first(path + levels[selected].name + "/audio/*.ogg", 0);audios != "";audios = file_find_next())
 				{
 					var audio = audio_create_stream(path + levels[selected].name + "/audio/" + audios);
@@ -1745,10 +1749,12 @@ with instance_create(0, 0, obj_custom_object_ext)
 					var file = json_parse(scr_load_file(path + levels[selected].name + "/levels/" + global.levelname + "/rooms/" + rooms));
 					var meini_file = path + levels[selected].name + "/levels/" + global.levelname + "/level.ini"; 
 					var _song = -4;
+					
 					if variable_global_exists(file.properties.song) 
 						_song = variable_global_get(file.properties.song);
 					else if variable_struct_exists(music_map, file.properties.song) 
 						_song = music_map[$ file.properties.song];
+					
 					ini_open(meini_file);
 					var escapelen = ini_read_real("data", "escape", 0);
 					var reqscore = ini_read_real("data", "pscore", 0);
@@ -1853,7 +1859,9 @@ with instance_create(0, 0, obj_custom_object_ext)
 				}
 				
 				add_afom_rooms();
-				var my_target = variable_struct_exists(global.rooms, "main_wfixed") ? global.main_wfixed : global.main;
+				
+				var my_target = variable_struct_exists(global.rooms, "main_wfixed") ? global.rooms[$ "main_wfixed"] : global.rooms[$ "main"];
+				
 				with obj_player
 				{
 					state = 95;
@@ -1864,6 +1872,7 @@ with instance_create(0, 0, obj_custom_object_ext)
 					targetDoor = "A";
 					global.leveltorestart = my_target;
 				}
+				
 				instance_create(0, 0, obj_fadeout);
 				levelLoaded = true;
 			} 
